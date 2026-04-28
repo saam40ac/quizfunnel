@@ -35,6 +35,8 @@ export default async function IntegrationsPage({
 
     let status = 0;
     let bodyPreview = "";
+    let success = false;
+
     try {
       const res = await fetch("https://api.systeme.io/api/contacts?limit=10", {
         headers: { "X-API-Key": ws.systemeApiKey },
@@ -42,20 +44,23 @@ export default async function IntegrationsPage({
       });
       status = res.status;
       const text = await res.text();
-      bodyPreview = text.slice(0, 200); // Solo primi 200 caratteri
-      if (res.ok) {
-        redirect("/dashboard/integrations?tested=ok");
-      }
+      bodyPreview = text.slice(0, 200);
+      success = res.ok;
     } catch (e: any) {
       bodyPreview = e?.message || "Errore di rete";
     }
 
     revalidatePath("/dashboard/integrations");
-    redirect(
-      `/dashboard/integrations?tested=ko&status=${status}&detail=${encodeURIComponent(
-        bodyPreview,
-      )}`,
-    );
+
+    if (success) {
+      redirect("/dashboard/integrations?tested=ok");
+    } else {
+      redirect(
+        `/dashboard/integrations?tested=ko&status=${status}&detail=${encodeURIComponent(
+          bodyPreview,
+        )}`,
+      );
+    }
   }
 
   return (
