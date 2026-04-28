@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ApiKeyInput } from "./api-key-input";
 
 export default async function IntegrationsPage({
   searchParams,
@@ -85,18 +86,9 @@ export default async function IntegrationsPage({
 
         <form action={save} className="mt-5 space-y-3">
           <label className="text-sm font-medium">Public API key</label>
-          <input
-            name="apiKey"
-            defaultValue={ws?.systemeApiKey || ""}
-            type="text"
-            placeholder="incolla qui la chiave"
-            className="w-full rounded-xl border border-ink/15 bg-white/80 px-4 py-3 font-mono text-xs"
-            autoComplete="off"
-            spellCheck={false}
-          />
+          <ApiKeyInput defaultValue={ws?.systemeApiKey || ""} />
           <p className="text-xs text-ink/50">
-            La chiave Systeme.io è una stringa lunga (50+ caratteri). Lasciamo il campo in chiaro
-            per aiutarti a verificare che sia stata copiata bene.
+            La chiave è mascherata per sicurezza. Click sull'icona 👁️ per mostrarla temporaneamente.
           </p>
           <div className="flex gap-2">
             <button className="btn-primary text-sm">Salva</button>
