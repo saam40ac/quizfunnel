@@ -6,7 +6,13 @@ import Link from "next/link";
 import { getBaseUrl } from "@/lib/utils";
 import { QuizEditor } from "./editor-client";
 
-export default async function EditQuizPage({ params }: { params: { id: string } }) {
+export default async function EditQuizPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { generated?: string };
+}) {
   const session = await auth();
   const wsId = (session!.user as any).workspaceId as string;
 
@@ -115,6 +121,21 @@ export default async function EditQuizPage({ params }: { params: { id: string } 
           </form>
         </div>
       </div>
+
+      {searchParams.generated === "1" && (
+        <div className="card mb-6 border-accent/30 bg-accent/5">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">✨</div>
+            <div>
+              <h3 className="font-display text-lg">Quiz generato dall'AI!</h3>
+              <p className="mt-1 text-sm text-ink/70">
+                Ho preparato domande, risposte e fasce di risultato per te. Controlla, modifica
+                quello che vuoi, poi clicca <strong>Salva modifiche</strong> e <strong>Pubblica</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {quiz.status === "PUBLISHED" && (
         <div className="card mb-6">

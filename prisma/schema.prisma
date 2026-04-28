@@ -47,7 +47,7 @@ model Workspace {
   name            String
   slug            String   @unique
   plan            Plan     @default(FREE)
-  systemeApiKey   String?  // Sistemato lato server
+  systemeApiKey   String?
   customDomain    String?  @unique
   createdAt       DateTime @default(now())
   users           User[]
@@ -62,21 +62,34 @@ model Quiz {
   slug            String
   description     String?
   status          QuizStatus @default(DRAFT)
-  // Branding
+
+  // ---- Brief usato per la generazione AI ----
+  briefSummary    String?
+  briefTarget     String?
+  briefProblem    String?
+  briefTone       String?    @default("professionale")
+  briefGoal       String?
+
+  // ---- Branding ----
   primaryColor    String     @default("#0f172a")
   accentColor     String     @default("#f59e0b")
   coverImageUrl   String?
-  // CTA finale
+
+  // ---- CTA finale ----
   ctaText         String     @default("Scopri di più")
-  ctaUrl          String?    // Link al checkout Systeme.io o landing
-  // Lead capture
-  leadCaptureMode String     @default("END") // END = solo prima del risultato
+  ctaUrl          String?
+
+  // ---- Lead capture ----
+  leadCaptureMode String     @default("END")
   privacyText     String?
-  // Result mapping (in JSON: array di {min,max,label,description,ctaUrl?})
+
+  // ---- Result mapping ----
   resultMappings  Json?
-  // Systeme.io integration
-  systemeTagName  String?    // Tag da applicare al contatto
-  // Metadata
+
+  // ---- Systeme.io ----
+  systemeTagName  String?
+
+  // ---- Metadata ----
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   questions       Question[]
