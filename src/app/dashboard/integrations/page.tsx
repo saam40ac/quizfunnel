@@ -17,7 +17,6 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
       data: { systemeApiKey: apiKey || null },
     });
     revalidatePath("/dashboard/integrations");
-    return { ok: true };
   }
 
   async function test() {
