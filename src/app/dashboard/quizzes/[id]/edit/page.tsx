@@ -81,7 +81,46 @@ export default async function EditQuizPage({
     });
 
     revalidatePath(`/dashboard/quizzes/${params.id}/edit`);
-    return { ok: true };
+  }
+
+  async function updateSlug(formData: FormData) {
+    "use server";
+    const session = await auth();
+    const wsId = (session!.user as any).workspaceId as string;
+    const newSlugRaw = String(formData.get("slug") || "").trim();
+    if (!newSlugRaw) return;
+
+    // Sanitizza: solo a-z, 0-9, trattini
+    const newSlug = newSlugRaw
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 80);
+
+    if (!newSlug) return;
+
+    const existing = await prisma.quiz.findFirst({
+      where: {
+        workspaceId: wsId,
+        slug: newSlug,
+        NOT: { id: params.id },
+      },
+    });
+    if (existing) {
+      // Se esiste già un altro quiz con questo slug nello stesso workspace, non fare nulla
+      // (in produzione mostreremmo un errore — qui rimaniamo silenziosi per semplicità)
+      return;
+    }
+
+    await prisma.quiz.updateMany({
+      where: { id: params.id, workspaceId: wsId },
+      data: { slug: newSlug },
+    });
+
+    revalidatePath(`/dashboard/quizzes/${params.id}/edit`);
   }
 
   async function togglePublish() {
@@ -136,6 +175,25 @@ export default async function EditQuizPage({
           </div>
         </div>
       )}
+
+      <div className="card mb-6">
+        <p className="text-xs uppercase tracking-widest text-ink/50">Slug del quiz (parte finale del link)</p>
+        <form action={updateSlug} className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
+          <div className="flex flex-1 items-center gap-1 rounded-lg border border-ink/15 bg-white/80 px-3 py-2 font-mono text-xs">
+            <span className="text-ink/40">{baseUrl}/q/{ws!.slug}/</span>
+            <input
+              name="slug"
+              defaultValue={quiz.slug}
+              className="flex-1 bg-transparent outline-none"
+              placeholder="es-storytelling"
+            />
+          </div>
+          <button className="btn-primary text-sm">Aggiorna slug</button>
+        </form>
+        <p className="mt-2 text-xs text-ink/50">
+          Solo lettere minuscole, numeri e trattini. Più corto è, meglio è.
+        </p>
+      </div>
 
       {quiz.status === "PUBLISHED" && (
         <div className="card mb-6">
