@@ -36,7 +36,7 @@ export default async function IntegrationsPage({
     let status = 0;
     let bodyPreview = "";
     try {
-      const res = await fetch("https://api.systeme.io/api/contacts?limit=1", {
+      const res = await fetch("https://api.systeme.io/api/contacts?limit=10", {
         headers: { "X-API-Key": ws.systemeApiKey },
         cache: "no-store",
       });
