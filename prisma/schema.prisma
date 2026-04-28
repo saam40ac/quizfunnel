@@ -1,0 +1,129 @@
+// Schema database QuizFunnel
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  MEMBER
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum QuestionType {
+  SINGLE
+  MULTIPLE
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         Role      @default(OWNER)
+  workspaceId  String?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+}
+
+model Workspace {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  plan            Plan     @default(FREE)
+  systemeApiKey   String?  // Sistemato lato server
+  customDomain    String?  @unique
+  createdAt       DateTime @default(now())
+  users           User[]
+  quizzes         Quiz[]
+}
+
+model Quiz {
+  id              String     @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  title           String
+  slug            String
+  description     String?
+  status          QuizStatus @default(DRAFT)
+  // Branding
+  primaryColor    String     @default("#0f172a")
+  accentColor     String     @default("#f59e0b")
+  coverImageUrl   String?
+  // CTA finale
+  ctaText         String     @default("Scopri di più")
+  ctaUrl          String?    // Link al checkout Systeme.io o landing
+  // Lead capture
+  leadCaptureMode String     @default("END") // END = solo prima del risultato
+  privacyText     String?
+  // Result mapping (in JSON: array di {min,max,label,description,ctaUrl?})
+  resultMappings  Json?
+  // Systeme.io integration
+  systemeTagName  String?    // Tag da applicare al contatto
+  // Metadata
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  questions       Question[]
+  leads           Lead[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+}
+
+model Question {
+  id        String       @id @default(cuid())
+  quizId    String
+  quiz      Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order     Int
+  text      String
+  type      QuestionType @default(SINGLE)
+  required  Boolean      @default(true)
+  answers   Answer[]
+
+  @@index([quizId])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String
+  score      Int      @default(0)
+
+  @@index([questionId])
+}
+
+model Lead {
+  id              String   @id @default(cuid())
+  quizId          String
+  quiz            Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  name            String
+  email           String
+  phone           String?
+  score           Int      @default(0)
+  resultLabel     String?
+  answersJson     Json
+  syncedToSysteme Boolean  @default(false)
+  systemeContactId String?
+  createdAt       DateTime @default(now())
+
+  @@index([quizId])
+  @@index([email])
+}
