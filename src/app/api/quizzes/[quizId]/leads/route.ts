@@ -56,10 +56,16 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
         // Custom fields da inviare a Systeme.io.
         // Questi slug DEVONO esistere come campi personalizzati su Systeme.io.
         // Vedi DOCUMENTAZIONE: ../../../../../docs/SYSTEME-IO-MAIL.md
+        //
+        // NOTA: Systeme.io ha un limite di 255 caratteri per i campi standard.
+        // Tronchiamo a 250 (con "..." in coda se serve) per stare sul sicuro.
+        const truncate = (s: string, max = 250) =>
+          s.length > max ? s.slice(0, max - 3) + "..." : s;
+
         const customFields = {
-          quiz_title: quiz.title,
-          quiz_result_label: data.resultLabel ?? "",
-          quiz_result_desc: resultDescription ?? "",
+          quiz_title: truncate(quiz.title),
+          quiz_result_label: truncate(data.resultLabel ?? ""),
+          quiz_result_desc: truncate(resultDescription ?? ""),
           quiz_result_score: data.score,
         };
 
