@@ -152,6 +152,7 @@ export default async function EditQuizPage({
           <h1 className="mt-1 font-display text-3xl">{quiz.title}</h1>
         </div>
         <div className="flex gap-2">
+          <Link href={`/dashboard/quizzes/${quiz.id}/emails`} className="btn-ghost text-sm">✉️ Email</Link>
           <Link href={`/dashboard/quizzes/${quiz.id}/leads`} className="btn-ghost text-sm">Lead</Link>
           <form action={togglePublish}>
             <button className={quiz.status === "PUBLISHED" ? "btn-ghost text-sm" : "btn-primary text-sm"}>
