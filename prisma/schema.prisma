@@ -94,9 +94,34 @@ model Quiz {
   updatedAt       DateTime   @updatedAt
   questions       Question[]
   leads           Lead[]
+  emails          QuizEmail[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId])
+}
+
+model QuizEmail {
+  id            String   @id @default(cuid())
+  quizId        String
+  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order         Int      // 1, 2, 3
+  // Etichetta interna per identificare la mail (es. "Risultato", "Consapevolezza", "Soluzione")
+  internalLabel String
+  // Delay suggerito da applicare in Systeme.io
+  suggestedDelay String?  @default("Subito") // es. "Subito", "+1 giorno", "+3 giorni"
+  // Contenuto
+  subject       String
+  preheader     String?  // Testo anteprima inbox
+  body          String   @db.Text
+  ctaText       String   @default("Scopri di più")
+  ctaUrl        String?
+  // Note libere editoriali per ricordarsi qualcosa
+  internalNotes String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([quizId, order])
+  @@index([quizId])
 }
 
 model Question {
