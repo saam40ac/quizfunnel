@@ -6,6 +6,10 @@
  *
  * Modello: claude-sonnet-4-6 (ottimo rapporto costo/qualità per testi italiani persuasivi).
  * Usa structured outputs via tool_use per garantire JSON valido.
+ *
+ * v2: Per ogni fascia di risultato genera anche:
+ *   - summary    -> riepilogo di max 200 caratteri (compatibile Systeme.io)
+ *   - ctaPhrase  -> frase invitante che porta alla CTA (max 200 caratteri)
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -19,12 +23,19 @@ export type QuizBrief = {
   problem: string;
   tone: "professionale" | "amichevole" | "diretto" | "motivazionale";
   goal: string;
-  numQuestions?: number; // default 7, max 7
+  numQuestions?: number;
 };
 
 export type GeneratedAnswer = { text: string; score: number };
 export type GeneratedQuestion = { text: string; answers: GeneratedAnswer[] };
-export type GeneratedResultMap = { min: number; max: number; label: string; description: string };
+export type GeneratedResultMap = {
+  min: number;
+  max: number;
+  label: string;
+  description: string;   // descrizione lunga (per la pagina del risultato)
+  summary: string;       // breve, max 200 char (per Systeme.io / mail)
+  ctaPhrase: string;     // frase invito breve, max 200 char (per Systeme.io / mail)
+};
 export type GeneratedQuiz = {
   description: string;
   questions: GeneratedQuestion[];
@@ -40,6 +51,11 @@ Quando ti viene fornito un brief di un progetto, generi un quiz in lingua italia
 2. Le domande centrali creano CONSAPEVOLEZZA del bisogno (cosa sta lasciando sul tavolo, cosa sta perdendo)
 3. Le ultime domande qualificano il lead (livello, urgenza, budget implicito)
 
+Per ogni fascia di risultato produci 3 versioni di testo:
+- description: testo completo per la pagina del risultato (200-400 caratteri, può essere ricco)
+- summary: versione condensata per email automatiche (MAX 200 caratteri, andante e diretta)
+- ctaPhrase: frase di transizione che porta alla CTA (MAX 200 caratteri, persuasiva, finisce naturalmente prima del pulsante)
+
 Regole imprescindibili:
 - Esattamente il numero di domande richiesto (max 7)
 - 3 o 4 risposte per domanda, mutualmente esclusive, in italiano naturale
@@ -48,7 +64,8 @@ Regole imprescindibili:
 - Tono di voce: rispetta scrupolosamente quello richiesto
 - NIENTE inglesismi inutili, NIENTE corporate-speak vuoto
 - Le domande devono toccare emotivamente il lettore, non interrogarlo come un sondaggio
-- Il "ctaText" finale deve essere un invito all'azione concreto e desiderabile`;
+- Il "ctaText" finale deve essere un invito all'azione concreto e desiderabile
+- summary e ctaPhrase DEVONO stare sotto i 200 caratteri (è un vincolo tecnico inviolabile)`;
 
 const TOOL: Anthropic.Tool = {
   name: "create_quiz",
@@ -98,10 +115,18 @@ const TOOL: Anthropic.Tool = {
             label: { type: "string", description: "Etichetta breve del profilo (es. 'Sei agli inizi')." },
             description: {
               type: "string",
-              description: "2-3 frasi che descrivono il profilo e introducono la soluzione.",
+              description: "Testo completo per la PAGINA del risultato (200-400 caratteri).",
+            },
+            summary: {
+              type: "string",
+              description: "Riepilogo BREVE per email automatiche. MASSIMO 200 caratteri (vincolo tecnico).",
+            },
+            ctaPhrase: {
+              type: "string",
+              description: "Frase persuasiva che introduce la CTA. MASSIMO 200 caratteri.",
             },
           },
-          required: ["min", "max", "label", "description"],
+          required: ["min", "max", "label", "description", "summary", "ctaPhrase"],
         },
       },
       ctaText: {
@@ -157,7 +182,10 @@ ${brief.goal}
    - Bassa: ~0 fino a 1/3 del massimo
    - Media: 1/3 + 1 fino a 2/3 del massimo
    - Alta: 2/3 + 1 fino al massimo
-5. Le 3 descrizioni dei profili devono presentare il problema diagnosticato e introdurre la soluzione del cliente
+5. Per ogni fascia produci OBBLIGATORIAMENTE 3 testi:
+   - description: testo lungo per la pagina (200-400 caratteri)
+   - summary: versione breve per le mail (MAX 200 caratteri, no eccezioni)
+   - ctaPhrase: frase invito per la CTA (MAX 200 caratteri, no eccezioni)
 6. Una CTA finale coerente con l'obiettivo dichiarato
 7. Frase privacy semplice e GDPR-compliant
 
@@ -172,7 +200,6 @@ Chiama lo strumento create_quiz con la struttura completa.`;
     messages: [{ role: "user", content: userMessage }],
   });
 
-  // Estraiamo il tool_use block
   const toolUseBlock = response.content.find((b) => b.type === "tool_use");
   if (!toolUseBlock || toolUseBlock.type !== "tool_use") {
     throw new Error("L'AI non ha restituito una struttura quiz valida");
@@ -180,7 +207,7 @@ Chiama lo strumento create_quiz con la struttura completa.`;
 
   const generated = toolUseBlock.input as GeneratedQuiz;
 
-  // Sanity check minima
+  // Sanity checks
   if (!Array.isArray(generated.questions) || generated.questions.length === 0) {
     throw new Error("Quiz generato senza domande");
   }
@@ -188,7 +215,18 @@ Chiama lo strumento create_quiz con la struttura completa.`;
     throw new Error("Quiz generato senza mappature dei risultati");
   }
 
-  // Tronca a max 7 domande per sicurezza
+  // Tronca i campi a 200 caratteri come safety net (l'AI dovrebbe già rispettare il limite)
+  const trim = (s: string | undefined, max: number) => {
+    if (!s) return "";
+    return s.length > max ? s.slice(0, max - 3) + "..." : s;
+  };
+
+  generated.resultMappings = generated.resultMappings.map((r) => ({
+    ...r,
+    summary: trim(r.summary, 200),
+    ctaPhrase: trim(r.ctaPhrase, 200),
+  }));
+
   generated.questions = generated.questions.slice(0, 7);
 
   return generated;
