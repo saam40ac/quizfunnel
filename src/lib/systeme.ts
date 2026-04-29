@@ -28,6 +28,12 @@ async function call<T>(apiKey: string, path: string, init: RequestInit = {}): Pr
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    // Log dettagliato visibile su Vercel Logs
+    console.error(
+      `[Systeme.io API ERROR] ${init.method || "GET"} ${path} -> ${res.status}`,
+      `\n  Body sent: ${init.body || "(none)"}`,
+      `\n  Response: ${text || res.statusText}`,
+    );
     throw new Error(`Systeme.io ${res.status}: ${text || res.statusText}`);
   }
   if (res.status === 204) return null as T;
