@@ -142,8 +142,6 @@ const TOOL: Anthropic.Tool = {
 };
 
 export async function generateEmailSequence(brief: EmailBrief): Promise<GeneratedEmailSequence> {
-  console.log("🔵 [V2-MARKER-2026] generateEmailSequence chiamato"); // ← MARCATORE TEMPORANEO
-
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY non configurata");
 
@@ -214,31 +212,68 @@ Chiama lo strumento create_email_sequence.`;
     throw new Error("L'AI non ha restituito una sequenza email valida (no tool_use block)");
   }
 
-  const generated = toolUseBlock.input as GeneratedEmailSequence;
+  const rawInput = toolUseBlock.input as any;
 
-  if (!Array.isArray(generated.emails)) {
-    console.error(
-      `[ai-email-generator] emails is not an array. Got:`,
-      JSON.stringify(generated).slice(0, 500),
-    );
-    throw new Error("L'AI ha restituito una struttura inattesa (emails non è un array)");
+  // Logging per capire cosa ci ha mandato (utile in caso di problemi futuri)
+  console.log(
+    `[ai-email-generator] Tool input keys: ${Object.keys(rawInput || {}).join(", ")}`,
+  );
+
+  // Estrazione tollerante: cerchiamo l'array di email in vari posti
+  let emails: any[] | null = null;
+
+  if (Array.isArray(rawInput)) {
+    emails = rawInput;
+  } else if (Array.isArray(rawInput?.emails)) {
+    emails = rawInput.emails;
+  } else if (Array.isArray(rawInput?.value)) {
+    emails = rawInput.value;
+  } else if (Array.isArray(rawInput?.result?.emails)) {
+    emails = rawInput.result.emails;
+  } else if (Array.isArray(rawInput?.sequence)) {
+    emails = rawInput.sequence;
+  } else if (rawInput && typeof rawInput === "object") {
+    // Ultima spiaggia: cerca la prima property che è un array di oggetti
+    for (const v of Object.values(rawInput)) {
+      if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object") {
+        emails = v as any[];
+        break;
+      }
+    }
   }
 
-  if (generated.emails.length === 0) {
+  if (!emails) {
+    console.error(
+      `[ai-email-generator] Cannot find emails array in tool_use input:`,
+      JSON.stringify(rawInput).slice(0, 800),
+    );
+    throw new Error(
+      "L'AI ha restituito una struttura inattesa. Il log mostra cosa è arrivato — riprova fra qualche secondo.",
+    );
+  }
+
+  if (emails.length === 0) {
     throw new Error("L'AI ha restituito 0 email. Riprova.");
   }
 
-  // Tolleranza: se l'AI ne ha generate meno di 3 (es. 2 perché si è troncato),
-  // accettiamo comunque quelle che ci sono, segnalando nel log.
-  if (generated.emails.length < 3) {
+  if (emails.length < 3) {
     console.warn(
-      `[ai-email-generator] Generate solo ${generated.emails.length}/3 email. ` +
+      `[ai-email-generator] Generate solo ${emails.length}/3 email. ` +
         `Probabile troncamento (stop_reason=${response.stop_reason}). Salvo quelle disponibili.`,
     );
   }
 
-  // Forza al massimo 3 mail
-  generated.emails = generated.emails.slice(0, 3);
+  // Forza al massimo 3 mail e normalizza i nomi dei campi
+  const normalized: GeneratedEmail[] = emails.slice(0, 3).map((e: any, i: number) => ({
+    internalLabel: String(e.internalLabel || e.label || e.title || `Email ${i + 1}`),
+    suggestedDelay: String(
+      e.suggestedDelay || e.delay || (i === 0 ? "Subito" : i === 1 ? "+1 giorno" : "+3 giorni"),
+    ),
+    subject: String(e.subject || e.oggetto || ""),
+    preheader: String(e.preheader || e.preview || e.anteprima || ""),
+    body: String(e.body || e.corpo || e.content || ""),
+    ctaText: String(e.ctaText || e.cta || e.button || "Scopri di più"),
+  }));
 
-  return generated;
+  return { emails: normalized };
 }
