@@ -142,6 +142,8 @@ const TOOL: Anthropic.Tool = {
 };
 
 export async function generateEmailSequence(brief: EmailBrief): Promise<GeneratedEmailSequence> {
+  console.log("🔵 [V2-MARKER-2026] generateEmailSequence chiamato"); // ← MARCATORE TEMPORANEO
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY non configurata");
 
