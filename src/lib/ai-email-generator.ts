@@ -219,25 +219,49 @@ Chiama lo strumento create_email_sequence.`;
     `[ai-email-generator] Tool input keys: ${Object.keys(rawInput || {}).join(", ")}`,
   );
 
+  // Helper: se un valore è una stringa che sembra JSON (inizia con [ o {),
+  // prova a parsarla. L'AI a volte serializza il contenuto come stringa.
+  const tryParseIfString = (v: any): any => {
+    if (typeof v !== "string") return v;
+    const trimmed = v.trim();
+    if (!trimmed.startsWith("[") && !trimmed.startsWith("{")) return v;
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return v;
+    }
+  };
+
   // Estrazione tollerante: cerchiamo l'array di email in vari posti
   let emails: any[] | null = null;
 
+  // Prova 1: rawInput è già un array
   if (Array.isArray(rawInput)) {
     emails = rawInput;
-  } else if (Array.isArray(rawInput?.emails)) {
-    emails = rawInput.emails;
-  } else if (Array.isArray(rawInput?.value)) {
-    emails = rawInput.value;
-  } else if (Array.isArray(rawInput?.result?.emails)) {
-    emails = rawInput.result.emails;
-  } else if (Array.isArray(rawInput?.sequence)) {
-    emails = rawInput.sequence;
   } else if (rawInput && typeof rawInput === "object") {
-    // Ultima spiaggia: cerca la prima property che è un array di oggetti
-    for (const v of Object.values(rawInput)) {
-      if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object") {
-        emails = v as any[];
+    // Prova 2-N: cerca in campi comuni, parsando se necessario
+    const candidateKeys = ["emails", "value", "sequence", "items", "list", "data"];
+    for (const k of candidateKeys) {
+      const candidate = tryParseIfString(rawInput[k]);
+      if (Array.isArray(candidate)) {
+        emails = candidate;
         break;
+      }
+    }
+    // Prova annidata
+    if (!emails && rawInput.result) {
+      const r = tryParseIfString(rawInput.result);
+      if (Array.isArray(r?.emails)) emails = r.emails;
+      else if (Array.isArray(r)) emails = r;
+    }
+    // Ultima spiaggia: prima property che è un array di oggetti, anche dopo parsing
+    if (!emails) {
+      for (const v of Object.values(rawInput)) {
+        const parsed = tryParseIfString(v);
+        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object") {
+          emails = parsed as any[];
+          break;
+        }
       }
     }
   }
