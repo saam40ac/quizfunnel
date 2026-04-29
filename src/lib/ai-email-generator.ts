@@ -188,25 +188,54 @@ Chiama lo strumento create_email_sequence.`;
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     tools: [TOOL],
     tool_choice: { type: "tool", name: "create_email_sequence" },
     messages: [{ role: "user", content: userMessage }],
   });
 
+  // Logging dettagliato della risposta dell'AI per diagnostica
+  console.log(
+    `[ai-email-generator] Response stop_reason: ${response.stop_reason}, ` +
+      `usage: in=${response.usage?.input_tokens} out=${response.usage?.output_tokens}`,
+  );
+
   const toolUseBlock = response.content.find((b) => b.type === "tool_use");
   if (!toolUseBlock || toolUseBlock.type !== "tool_use") {
-    throw new Error("L'AI non ha restituito una sequenza email valida");
+    // Logga anche cosa ha restituito (potrebbe essere solo testo)
+    const textBlock = response.content.find((b) => b.type === "text");
+    console.error(
+      `[ai-email-generator] No tool_use block. stop_reason=${response.stop_reason}. ` +
+        `Text content: ${(textBlock as any)?.text?.slice(0, 500) || "(none)"}`,
+    );
+    throw new Error("L'AI non ha restituito una sequenza email valida (no tool_use block)");
   }
 
   const generated = toolUseBlock.input as GeneratedEmailSequence;
 
-  if (!Array.isArray(generated.emails) || generated.emails.length < 3) {
-    throw new Error("Sequenza email non completa");
+  if (!Array.isArray(generated.emails)) {
+    console.error(
+      `[ai-email-generator] emails is not an array. Got:`,
+      JSON.stringify(generated).slice(0, 500),
+    );
+    throw new Error("L'AI ha restituito una struttura inattesa (emails non è un array)");
   }
 
-  // Forza esattamente 3 mail con order 1, 2, 3
+  if (generated.emails.length === 0) {
+    throw new Error("L'AI ha restituito 0 email. Riprova.");
+  }
+
+  // Tolleranza: se l'AI ne ha generate meno di 3 (es. 2 perché si è troncato),
+  // accettiamo comunque quelle che ci sono, segnalando nel log.
+  if (generated.emails.length < 3) {
+    console.warn(
+      `[ai-email-generator] Generate solo ${generated.emails.length}/3 email. ` +
+        `Probabile troncamento (stop_reason=${response.stop_reason}). Salvo quelle disponibili.`,
+    );
+  }
+
+  // Forza al massimo 3 mail
   generated.emails = generated.emails.slice(0, 3);
 
   return generated;
