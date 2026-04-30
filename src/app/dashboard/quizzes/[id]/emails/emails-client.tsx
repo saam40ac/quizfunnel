@@ -66,7 +66,9 @@ export function EmailsEditor({
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Errore generazione");
       }
-      router.refresh();
+      // Hard reload per essere sicuri che i Server Components rifaccino la query al DB
+      // e mostrino le email appena generate. router.refresh() non sempre basta.
+      window.location.reload();
     } catch (e: any) {
       setError(e.message || "Errore generazione email");
     } finally {
