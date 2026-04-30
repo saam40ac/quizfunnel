@@ -4,14 +4,25 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { EmailsEditor } from "./emails-client";
 
-export default async function QuizEmailsPage({ params }: { params: { id: string } }) {
+export default async function QuizEmailsPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { v?: string };
+}) {
   const session = await auth();
   const wsId = (session!.user as any).workspaceId as string;
 
   const quiz = await prisma.quiz.findFirst({
     where: { id: params.id, workspaceId: wsId },
     include: {
-      emails: { orderBy: { order: "asc" } },
+      emailVersions: {
+        orderBy: { versionNumber: "desc" },
+        include: {
+          emails: { orderBy: { order: "asc" } },
+        },
+      },
     },
   });
   if (!quiz) notFound();
@@ -22,6 +33,13 @@ export default async function QuizEmailsPage({ params }: { params: { id: string 
     quiz.briefProblem &&
     quiz.briefGoal
   );
+
+  // Determina quale versione mostrare
+  const versions = quiz.emailVersions;
+  let currentVersion = versions.find((v) => v.id === searchParams.v);
+  if (!currentVersion) {
+    currentVersion = versions.find((v) => v.isActive) || versions[0];
+  }
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -52,10 +70,7 @@ export default async function QuizEmailsPage({ params }: { params: { id: string 
           <p className="mt-1 text-sm text-amber-900">
             Questo quiz non ha un brief AI completo. Per generare le email
             automaticamente, ti consiglio di creare un nuovo quiz dal wizard
-            "Nuovo quiz con AI", che chiede target, problema, tono e obiettivo.
-            <br />
-            <br />
-            Puoi comunque scrivere le 3 email a mano qui sotto.
+            "Nuovo quiz con AI".
           </p>
         </div>
       )}
@@ -64,17 +79,30 @@ export default async function QuizEmailsPage({ params }: { params: { id: string 
         quizId={quiz.id}
         canGenerate={hasBrief}
         defaultCtaUrl={quiz.ctaUrl ?? ""}
-        emails={quiz.emails.map((e) => ({
-          id: e.id,
-          order: e.order,
-          internalLabel: e.internalLabel,
-          suggestedDelay: e.suggestedDelay ?? "",
-          subject: e.subject,
-          preheader: e.preheader ?? "",
-          body: e.body,
-          ctaText: e.ctaText,
-          ctaUrl: e.ctaUrl ?? "",
+        versions={versions.map((v) => ({
+          id: v.id,
+          versionNumber: v.versionNumber,
+          label: v.label,
+          notes: v.notes,
+          isActive: v.isActive,
+          createdAt: v.createdAt.toISOString(),
         }))}
+        currentVersionId={currentVersion?.id ?? null}
+        emails={
+          currentVersion
+            ? currentVersion.emails.map((e) => ({
+                id: e.id,
+                order: e.order,
+                internalLabel: e.internalLabel,
+                suggestedDelay: e.suggestedDelay ?? "",
+                subject: e.subject,
+                preheader: e.preheader ?? "",
+                body: e.body,
+                ctaText: e.ctaText,
+                ctaUrl: e.ctaUrl ?? "",
+              }))
+            : []
+        }
       />
     </div>
   );
