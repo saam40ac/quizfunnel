@@ -5,6 +5,8 @@ import { generateEmailSequence } from "@/lib/ai-email-generator";
 
 export const maxDuration = 60;
 
+const MAX_VERSIONS = 5;
+
 export async function POST(req: NextRequest, { params }: { params: { quizId: string } }) {
   try {
     const session = await auth();
@@ -45,13 +47,37 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
       finalCtaUrl: quiz.ctaUrl ?? undefined,
     });
 
-    // Sostituisci tutte le email del quiz (sequenza intera nuova)
-    await prisma.$transaction(async (tx) => {
-      await tx.quizEmail.deleteMany({ where: { quizId: quiz.id } });
+    // Trova il prossimo numero di versione
+    const lastVersion = await prisma.emailSequenceVersion.findFirst({
+      where: { quizId: quiz.id },
+      orderBy: { versionNumber: "desc" },
+    });
+    const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1;
+
+    // Crea la nuova versione + email + disattiva le altre versioni in una transazione
+    const newVersion = await prisma.$transaction(async (tx) => {
+      // Disattiva tutte le versioni precedenti
+      await tx.emailSequenceVersion.updateMany({
+        where: { quizId: quiz.id, isActive: true },
+        data: { isActive: false },
+      });
+
+      // Crea la nuova versione (attiva)
+      const v = await tx.emailSequenceVersion.create({
+        data: {
+          quizId: quiz.id,
+          versionNumber: nextVersionNumber,
+          isActive: true,
+          label: `v${nextVersionNumber} — ${new Date().toLocaleDateString("it-IT")}`,
+        },
+      });
+
+      // Crea le email collegate alla versione
       for (let i = 0; i < generated.emails.length; i++) {
         const e = generated.emails[i];
         await tx.quizEmail.create({
           data: {
+            versionId: v.id,
             quizId: quiz.id,
             order: i + 1,
             internalLabel: e.internalLabel,
@@ -64,9 +90,25 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
           },
         });
       }
+
+      return v;
     });
 
-    return NextResponse.json({ ok: true });
+    // Pulizia: se siamo oltre MAX_VERSIONS, elimina le più vecchie (NON l'attiva)
+    const allVersions = await prisma.emailSequenceVersion.findMany({
+      where: { quizId: quiz.id },
+      orderBy: { createdAt: "desc" },
+    });
+    if (allVersions.length > MAX_VERSIONS) {
+      const toDelete = allVersions.slice(MAX_VERSIONS).filter((v) => !v.isActive);
+      if (toDelete.length > 0) {
+        await prisma.emailSequenceVersion.deleteMany({
+          where: { id: { in: toDelete.map((v) => v.id) } },
+        });
+      }
+    }
+
+    return NextResponse.json({ ok: true, versionId: newVersion.id });
   } catch (e: any) {
     console.error("[generate emails]", e);
     const msg = e?.message?.includes("ANTHROPIC_API_KEY")
