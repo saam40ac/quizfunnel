@@ -94,33 +94,55 @@ model Quiz {
   updatedAt       DateTime   @updatedAt
   questions       Question[]
   leads           Lead[]
+  emailVersions   EmailSequenceVersion[]
   emails          QuizEmail[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId])
 }
 
-model QuizEmail {
-  id            String   @id @default(cuid())
-  quizId        String
-  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  order         Int      // 1, 2, 3
-  // Etichetta interna per identificare la mail (es. "Risultato", "Consapevolezza", "Soluzione")
-  internalLabel String
-  // Delay suggerito da applicare in Systeme.io
-  suggestedDelay String?  @default("Subito") // es. "Subito", "+1 giorno", "+3 giorni"
-  // Contenuto
-  subject       String
-  preheader     String?  // Testo anteprima inbox
-  body          String   @db.Text
-  ctaText       String   @default("Scopri di più")
-  ctaUrl        String?
-  // Note libere editoriali per ricordarsi qualcosa
-  internalNotes String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model EmailSequenceVersion {
+  id           String      @id @default(cuid())
+  quizId       String
+  quiz         Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  // Numero progressivo della versione (1, 2, 3, …)
+  versionNumber Int
+  // Etichetta libera che il marketer può dare alla versione (es. "v1 — empatica")
+  label        String?
+  // Note libere (es. "v2 ha avuto +12% di click")
+  notes        String?     @db.Text
+  // Una sola versione per quiz può essere "attiva"
+  isActive     Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  emails       QuizEmail[]
 
-  @@unique([quizId, order])
+  @@unique([quizId, versionNumber])
+  @@index([quizId])
+}
+
+model QuizEmail {
+  id             String                @id @default(cuid())
+  // Le email appartengono a una versione specifica della sequenza
+  versionId      String
+  version        EmailSequenceVersion  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  // Manteniamo un riferimento al quiz per query veloci
+  quizId         String
+  quiz           Quiz                  @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order          Int      // 1, 2, 3
+  internalLabel  String
+  suggestedDelay String?  @default("Subito")
+  subject        String
+  preheader      String?
+  body           String   @db.Text
+  ctaText        String   @default("Scopri di più")
+  ctaUrl         String?
+  internalNotes  String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([versionId, order])
+  @@index([versionId])
   @@index([quizId])
 }
 
