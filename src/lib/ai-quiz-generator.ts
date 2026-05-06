@@ -13,6 +13,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAIUsage } from "@/lib/ai-usage";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -24,6 +25,7 @@ export type QuizBrief = {
   tone: "professionale" | "amichevole" | "diretto" | "motivazionale";
   goal: string;
   numQuestions?: number;
+  workspaceId?: string; // Per il logging dei costi AI
 };
 
 export type GeneratedAnswer = { text: string; score: number };
@@ -198,6 +200,15 @@ Chiama lo strumento create_quiz con la struttura completa.`;
     tools: [TOOL],
     tool_choice: { type: "tool", name: "create_quiz" },
     messages: [{ role: "user", content: userMessage }],
+  });
+
+  // Log dell'uso AI per monitoraggio costi
+  await logAIUsage({
+    workspaceId: brief.workspaceId,
+    operation: "quiz_generation",
+    model: MODEL,
+    inputTokens: response.usage?.input_tokens ?? 0,
+    outputTokens: response.usage?.output_tokens ?? 0,
   });
 
   const toolUseBlock = response.content.find((b) => b.type === "tool_use");
