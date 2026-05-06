@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -28,7 +29,12 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="font-display text-3xl">Admin · Tutti i workspace</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-3xl">Admin · Tutti i workspace</h1>
+        <Link href="/admin/backup" className="btn-ghost text-sm">
+          💾 Backup &amp; Costi →
+        </Link>
+      </div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-3">
         <div className="card"><div className="text-xs uppercase tracking-widest text-ink/50">Workspace</div><div className="mt-1 font-display text-4xl">{stats.workspaces}</div></div>
