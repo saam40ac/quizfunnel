@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       tone: data.tone,
       goal: data.goal,
       numQuestions: data.numQuestions ?? 7,
+      workspaceId: wsId,
     });
 
     // Crea slug univoco
