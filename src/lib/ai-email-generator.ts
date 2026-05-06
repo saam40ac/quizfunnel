@@ -13,6 +13,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAIUsage } from "@/lib/ai-usage";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -26,6 +27,7 @@ export type EmailBrief = {
   resultLabels: string[];
   finalCtaText: string;
   finalCtaUrl?: string;
+  workspaceId?: string; // Per il logging dei costi AI
 };
 
 export type GeneratedEmail = {
@@ -198,6 +200,15 @@ NON: il quiz "{quiz_title}"`;
     tools: [SINGLE_EMAIL_TOOL],
     tool_choice: { type: "tool", name: "create_single_email" },
     messages: [{ role: "user", content: userMessage }],
+  });
+
+  // Log dell'uso AI per monitoraggio costi
+  await logAIUsage({
+    workspaceId: brief.workspaceId,
+    operation: `email_generation_${step.internalLabel.toLowerCase()}`,
+    model: MODEL,
+    inputTokens: response.usage?.input_tokens ?? 0,
+    outputTokens: response.usage?.output_tokens ?? 0,
   });
 
   console.log(
