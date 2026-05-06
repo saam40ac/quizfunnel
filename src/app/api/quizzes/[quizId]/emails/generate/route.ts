@@ -45,6 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
       resultLabels,
       finalCtaText: quiz.ctaText,
       finalCtaUrl: quiz.ctaUrl ?? undefined,
+      workspaceId: wsId,
     });
 
     // Trova il prossimo numero di versione
