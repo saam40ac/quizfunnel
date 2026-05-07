@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import { generateQuizFromBrief } from "@/lib/ai-quiz-generator";
+import { enforceLimit, PlanLimitError } from "@/lib/usage";
 
 // Lasciamo timeout generoso (Anthropic può impiegare 10-15 secondi)
 export const maxDuration = 60;
@@ -28,6 +29,10 @@ export async function POST(req: NextRequest) {
     if (!wsId) {
       return NextResponse.json({ error: "Workspace mancante" }, { status: 400 });
     }
+
+    // Verifica limiti del piano: serve poter usare AI E creare un nuovo quiz
+    await enforceLimit(wsId, "generate_quiz_ai");
+    await enforceLimit(wsId, "create_quiz");
 
     const json = await req.json();
     const data = Body.parse(json);
@@ -88,6 +93,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ quizId: quiz.id });
   } catch (e: any) {
+    if (e instanceof PlanLimitError) {
+      return NextResponse.json(
+        { error: e.message, code: e.code, upgradeTo: e.upgradeTo },
+        { status: e.status },
+      );
+    }
     console.error("[generate quiz]", e);
     const msg =
       e?.message?.includes?.("ANTHROPIC_API_KEY")
