@@ -25,24 +25,54 @@ import {
 } from "@/lib/billing-tags";
 
 export async function POST(req: NextRequest) {
-  // 1. Verifica secret
-  const secret = req.nextUrl.searchParams.get("secret");
+  // 0. Logging diagnostico massimo: capiamo cosa Systeme.io ci manda davvero
+  const allHeaders: Record<string, string> = {};
+  req.headers.forEach((v, k) => {
+    allHeaders[k] = v;
+  });
+
+  const rawBody = await req.text();
+  console.log(
+    "[webhook v2] === RICHIESTA IN ARRIVO ===\n" +
+      `URL: ${req.url}\n` +
+      `Headers: ${JSON.stringify(allHeaders)}\n` +
+      `Body (primi 2000 char): ${rawBody.slice(0, 2000)}`,
+  );
+
+  // 1. Verifica secret in modo tollerante (URL, body, header)
   const expected = process.env.SYSTEME_WEBHOOK_SECRET;
   if (!expected) {
-    console.error("[webhook] SYSTEME_WEBHOOK_SECRET not configured");
+    console.error("[webhook v2] SYSTEME_WEBHOOK_SECRET not configured");
     return NextResponse.json({ error: "not configured" }, { status: 500 });
   }
-  if (secret !== expected) {
-    console.warn("[webhook] Invalid secret received");
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
 
-  // 2. Parse payload (tolleranti su diversi formati possibili)
+  const secretFromUrl = req.nextUrl.searchParams.get("secret");
+  const secretFromHeader =
+    req.headers.get("x-webhook-secret") ||
+    req.headers.get("x-systeme-secret") ||
+    req.headers.get("x-signature") ||
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+    null;
+
+  // Parse body per cercare secret anche lì
   let payload: any;
   try {
-    payload = await req.json();
+    payload = rawBody ? JSON.parse(rawBody) : {};
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  }
+  const secretFromBody =
+    payload.secret || payload.webhook_secret || payload.signature || null;
+
+  const candidates = [secretFromUrl, secretFromHeader, secretFromBody].filter(Boolean);
+  const secretMatch = candidates.some((s) => s === expected);
+
+  if (!secretMatch) {
+    console.warn(
+      `[webhook v2] Secret mismatch. URL=${!!secretFromUrl}, header=${!!secretFromHeader}, body=${!!secretFromBody}. ` +
+        `Confronta nei log gli headers per capire dove Systeme.io mette il secret.`,
+    );
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   // Estrazione tollerante: Systeme.io può avere vari formati
@@ -94,8 +124,16 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Determina se è un evento "tag_added" (active) o "tag_removed" (cancellazione)
-  const isAddEvent = /add|added|created|attached/i.test(eventType);
-  const isRemoveEvent = /remove|removed|deleted|detached/i.test(eventType);
+  // Riconoscimento multilingua: inglese + italiano + varianti
+  const eventNormalized = eventType.toLowerCase();
+  const isAddEvent =
+    /add|added|created|attached|aggiunto|aggiunti|nuovo/i.test(eventNormalized);
+  const isRemoveEvent =
+    /remov|delet|detach|unset|cancel|rimosso|rimossi|eliminato|tolto/i.test(eventNormalized);
+
+  console.log(
+    `[webhook v2] Event classification: type="${eventType}", isAdd=${isAddEvent}, isRemove=${isRemoveEvent}`,
+  );
 
   // 4. Cerca workspace per billingEmail o per user email
   const ws = await findWorkspaceByEmail(email);
