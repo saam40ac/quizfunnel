@@ -32,14 +32,26 @@ export default async function EditQuizPage({
   const publicUrl = `${baseUrl}/q/${ws!.slug}/${quiz.slug}`;
   const embedUrl = `${baseUrl}/embed/${quiz.id}`;
 
+  // Verifica se questo quiz è in soft-lock (supera limite piano)
+  const { isQuizLocked } = await import("@/lib/usage");
+  const locked = await isQuizLocked(wsId, params.id);
+
   // Server actions
   async function saveQuiz(data: any) {
     "use server";
+    const { isQuizLocked } = await import("@/lib/usage");
     const session = await auth();
     const wsId = (session!.user as any).workspaceId as string;
 
     const quiz = await prisma.quiz.findFirst({ where: { id: params.id, workspaceId: wsId } });
     if (!quiz) throw new Error("Not found");
+
+    // Soft-lock: se il quiz è oltre il limite del piano, non si può modificare
+    if (await isQuizLocked(wsId, params.id)) {
+      throw new Error(
+        "Questo quiz è in modalità lettura perché supera il limite del tuo piano. Fai upgrade per sbloccarlo.",
+      );
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.quiz.update({
@@ -163,6 +175,21 @@ export default async function EditQuizPage({
           </form>
         </div>
       </div>
+
+      {locked && (
+        <div className="card mb-6 border-amber-300 bg-amber-50">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">🔒</div>
+            <div>
+              <h3 className="font-display text-lg">Quiz in modalità lettura</h3>
+              <p className="mt-1 text-sm text-amber-900">
+                Questo quiz supera il limite del piano <strong>{ws!.plan}</strong>. Puoi visualizzarlo
+                ma non modificarlo. <Link href="/dashboard/billing" className="font-semibold underline">Fai upgrade</Link> per sbloccarlo.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {searchParams.generated === "1" && (
         <div className="card mb-6 border-accent/30 bg-accent/5">
