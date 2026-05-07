@@ -49,6 +49,9 @@ model Workspace {
   plan            Plan     @default(FREE)
   systemeApiKey   String?
   customDomain    String?  @unique
+  // Logo del workspace - base64 data URL (data:image/png;base64,...)
+  logoUrl         String?  @db.Text
+  logoUrlDark     String?  @db.Text  // versione per sfondi scuri (opzionale)
   createdAt       DateTime @default(now())
   users           User[]
   quizzes         Quiz[]
@@ -74,6 +77,10 @@ model Quiz {
   primaryColor    String     @default("#0f172a")
   accentColor     String     @default("#f59e0b")
   coverImageUrl   String?
+  // Override logo solo per questo quiz (se vuoto usa quello del workspace)
+  logoUrl         String?    @db.Text
+  // Posizionamento logo: "center" | "left" | "hidden"
+  logoPosition    String     @default("center")
 
   // ---- CTA finale ----
   ctaText         String     @default("Scopri di più")
