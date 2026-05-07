@@ -71,6 +71,38 @@ export class PlanLimitError extends Error {
   }
 }
 
+/**
+ * Restituisce gli ID dei quiz "extra" che sono in modalità lettura (soft-locked)
+ * perché il piano corrente non li copre tutti.
+ *
+ * Ordinamento: i più recenti restano sbloccati, i più vecchi vengono bloccati.
+ * Esempio: PRO (10 quiz) → FREE (1 quiz). Se ci sono 5 quiz, 1 resta attivo
+ * (il più recente per data di aggiornamento) e 4 vengono bloccati.
+ */
+export async function getLockedQuizIds(workspaceId: string): Promise<Set<string>> {
+  const usage = await getWorkspaceUsage(workspaceId);
+  if (!usage.isOverQuizLimit) return new Set();
+
+  const quizzes = await prisma.quiz.findMany({
+    where: { workspaceId },
+    select: { id: true },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  // I primi N (entro il limite) sono attivi, gli altri sono bloccati
+  const allowed = quizzes.slice(0, usage.limits.maxQuizzes).map((q) => q.id);
+  const allowedSet = new Set(allowed);
+  return new Set(quizzes.filter((q) => !allowedSet.has(q.id)).map((q) => q.id));
+}
+
+/**
+ * Verifica se uno specifico quiz è in lettura per via di un soft-downgrade.
+ */
+export async function isQuizLocked(workspaceId: string, quizId: string): Promise<boolean> {
+  const locked = await getLockedQuizIds(workspaceId);
+  return locked.has(quizId);
+}
+
 export type LimitAction =
   | "create_quiz"
   | "generate_quiz_ai"
