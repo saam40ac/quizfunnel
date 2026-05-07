@@ -20,6 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard", label: "Quiz" },
     { href: "/dashboard/integrations", label: "Integrazioni" },
     { href: "/dashboard/settings", label: "Workspace" },
+    { href: "/dashboard/billing", label: "Piani" },
   ];
   if (role === "SUPER_ADMIN") items.push({ href: "/admin", label: "Admin" });
 
