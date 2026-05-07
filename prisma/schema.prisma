@@ -52,9 +52,65 @@ model Workspace {
   // Logo del workspace - base64 data URL (data:image/png;base64,...)
   logoUrl         String?  @db.Text
   logoUrlDark     String?  @db.Text  // versione per sfondi scuri (opzionale)
+  // Email usata su Systeme.io per il pagamento (può essere diversa dall'email login)
+  billingEmail    String?
   createdAt       DateTime @default(now())
   users           User[]
   quizzes         Quiz[]
+  subscriptions   Subscription[]
+  webhookEvents   WebhookEvent[]
+}
+
+/// Stato dell'abbonamento di un workspace.
+/// Aggiornato dai webhook in arrivo da Systeme.io.
+model Subscription {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // Piano a cui l'utente si è abbonato
+  plan          Plan
+  // Email Systeme.io con cui ha pagato
+  billingEmail  String
+  // Stato corrente
+  status        String    @default("active") // "active", "cancelled", "expired"
+  // Tag su Systeme.io che attiva questo abbonamento
+  systemeTag    String?
+  // Quando inizia/finisce
+  startedAt     DateTime  @default(now())
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@index([billingEmail])
+  @@index([status])
+}
+
+/// Log degli eventi ricevuti dai webhook Systeme.io.
+/// Usato per debug e per evitare di processare lo stesso evento due volte.
+model WebhookEvent {
+  id            String    @id @default(cuid())
+  // Provider che ha mandato l'evento (per ora sempre "systeme")
+  provider      String    @default("systeme")
+  // Tipo evento (es. "tag_added", "tag_removed", "subscription_cancelled")
+  eventType     String
+  // Email del contatto coinvolto
+  email         String
+  // Tag (per eventi tag_added/removed)
+  tagName       String?
+  // Workspace su cui è stato applicato (NULL se non trovato)
+  workspaceId   String?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  // Esito del processing
+  status        String    @default("processed") // "processed", "ignored", "error"
+  errorMessage  String?   @db.Text
+  // Payload originale per debug
+  rawPayload    Json?
+  createdAt     DateTime  @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+  @@index([workspaceId])
 }
 
 model Quiz {
