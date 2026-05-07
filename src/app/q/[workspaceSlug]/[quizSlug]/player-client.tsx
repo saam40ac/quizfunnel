@@ -15,6 +15,8 @@ type Quiz = {
   primaryColor: string;
   accentColor: string;
   privacyText: string | null;
+  logoUrl: string | null;
+  logoPosition: string;
   resultMappings: ResultMap[];
   questions: Question[];
 };
@@ -95,7 +97,7 @@ export function QuizPlayer({ quiz }: { quiz: Quiz }) {
   // -------------- Intro --------------
   if (step === "intro") {
     return (
-      <Card>
+      <Card logoUrl={quiz.logoUrl} logoPosition={quiz.logoPosition}>
         <div className="text-xs uppercase tracking-widest" style={{ color: ink + "99" }}>QUIZ</div>
         <h1 className="mt-2 font-display text-4xl leading-tight md:text-5xl" style={{ color: ink }}>
           {quiz.title}
@@ -125,7 +127,7 @@ export function QuizPlayer({ quiz }: { quiz: Quiz }) {
     const progress = ((current + 1) / quiz.questions.length) * 100;
     const selected = answers[q.id];
     return (
-      <Card>
+      <Card logoUrl={quiz.logoUrl} logoPosition={quiz.logoPosition}>
         <div className="mb-2 flex items-center justify-between text-xs" style={{ color: ink + "99" }}>
           <span>DOMANDA {current + 1} / {quiz.questions.length}</span>
           <span>{Math.round(progress)}%</span>
@@ -162,7 +164,7 @@ export function QuizPlayer({ quiz }: { quiz: Quiz }) {
   // -------------- Lead capture --------------
   if (step === "lead") {
     return (
-      <Card>
+      <Card logoUrl={quiz.logoUrl} logoPosition={quiz.logoPosition}>
         <div className="text-xs uppercase tracking-widest" style={{ color: ink + "99" }}>ULTIMO PASSO</div>
         <h2 className="mt-2 font-display text-3xl" style={{ color: ink }}>
           Dove ti inviamo il <em className="not-italic" style={{ color: accent }}>tuo risultato</em>?
@@ -194,7 +196,7 @@ export function QuizPlayer({ quiz }: { quiz: Quiz }) {
 
   // -------------- Result --------------
   return (
-    <Card>
+    <Card logoUrl={quiz.logoUrl} logoPosition={quiz.logoPosition}>
       <div className="text-xs uppercase tracking-widest" style={{ color: ink + "99" }}>IL TUO RISULTATO</div>
       <h2 className="mt-2 font-display text-4xl md:text-5xl" style={{ color: ink }}>
         {result?.label || "Profilo personalizzato"}
@@ -221,10 +223,33 @@ export function QuizPlayer({ quiz }: { quiz: Quiz }) {
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({
+  children,
+  logoUrl,
+  logoPosition,
+}: {
+  children: React.ReactNode;
+  logoUrl?: string | null;
+  logoPosition?: string;
+}) {
+  const showLogo = logoUrl && logoPosition !== "hidden";
+  const align = logoPosition === "left" ? "justify-start pl-2" : "justify-center";
+
   return (
-    <div className="mx-auto max-w-2xl rounded-3xl bg-white p-8 shadow-2xl md:p-12 animate-fade-up">
-      {children}
+    <div className="mx-auto max-w-2xl">
+      {showLogo && (
+        <div className={`mb-6 flex ${align}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoUrl as string}
+            alt="Logo"
+            className="h-12 max-w-[260px] object-contain md:h-14"
+          />
+        </div>
+      )}
+      <div className="rounded-3xl bg-white p-8 shadow-2xl md:p-12 animate-fade-up">
+        {children}
+      </div>
     </div>
   );
 }
