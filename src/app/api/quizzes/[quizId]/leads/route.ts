@@ -38,8 +38,25 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
       },
     });
 
-    // 2. Sync Systeme.io (se configurato)
+    // 2. Sync Systeme.io (se configurato + se sotto il limite mensile del piano)
+    let skippedDueToLimit = false;
     if (quiz.workspace.systemeApiKey) {
+      // Verifica limite lead/mese del piano
+      try {
+        const { getWorkspaceUsage } = await import("@/lib/usage");
+        const usage = await getWorkspaceUsage(quiz.workspaceId);
+        if (usage.isOverLeadLimit) {
+          skippedDueToLimit = true;
+          console.warn(
+            `[leads] Workspace ${quiz.workspaceId} ha superato il limite di ${usage.limits.maxLeadsPerMonth} lead/mese del piano ${usage.plan}. Lead salvato ma NON sincronizzato.`,
+          );
+        }
+      } catch (err) {
+        console.error("[leads] usage check failed", err);
+      }
+    }
+
+    if (quiz.workspace.systemeApiKey && !skippedDueToLimit) {
       try {
         const tagName = quiz.systemeTagName || `quiz-${quiz.slug}`;
 
