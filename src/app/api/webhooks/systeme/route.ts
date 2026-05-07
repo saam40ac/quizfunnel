@@ -75,8 +75,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Estrazione tollerante: Systeme.io può avere vari formati
+  // Estrazione tollerante: Systeme.io mette l'evento nell'HEADER 'x-webhook-event'
+  // (es. CONTACT_TAG_ADDED, CONTACT_TAG_REMOVED). Altri provider potrebbero usare il body.
   const eventType =
+    req.headers.get("x-webhook-event") ||
     payload.event ||
     payload.event_type ||
     payload.type ||
