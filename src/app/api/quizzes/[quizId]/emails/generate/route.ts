@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateEmailSequence } from "@/lib/ai-email-generator";
+import { enforceLimit, PlanLimitError } from "@/lib/usage";
+import { getLimits } from "@/lib/plans";
 
 export const maxDuration = 60;
-
-const MAX_VERSIONS = 5;
 
 export async function POST(req: NextRequest, { params }: { params: { quizId: string } }) {
   try {
@@ -15,12 +15,20 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
     }
     const wsId = (session.user as any).workspaceId as string;
 
+    // Verifica permesso AI per email
+    await enforceLimit(wsId, "generate_email_ai");
+
     const quiz = await prisma.quiz.findFirst({
       where: { id: params.quizId, workspaceId: wsId },
+      include: { workspace: true },
     });
     if (!quiz) {
       return NextResponse.json({ error: "Quiz non trovato" }, { status: 404 });
     }
+
+    // Limite versioni dipende dal piano del workspace
+    const planLimits = getLimits(quiz.workspace.plan as any);
+    const MAX_VERSIONS = planLimits.maxEmailVersions;
 
     if (!quiz.briefSummary || !quiz.briefTarget || !quiz.briefProblem || !quiz.briefGoal) {
       return NextResponse.json(
@@ -111,6 +119,12 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
 
     return NextResponse.json({ ok: true, versionId: newVersion.id });
   } catch (e: any) {
+    if (e instanceof PlanLimitError) {
+      return NextResponse.json(
+        { error: e.message, code: e.code, upgradeTo: e.upgradeTo },
+        { status: e.status },
+      );
+    }
     console.error("[generate emails]", e);
     const msg = e?.message?.includes("ANTHROPIC_API_KEY")
       ? "La piattaforma non ha una chiave AI configurata."
