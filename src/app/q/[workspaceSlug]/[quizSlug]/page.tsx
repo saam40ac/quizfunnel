@@ -23,6 +23,43 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   };
 }
 
+/**
+ * Sceglie quale logo mostrare in base allo sfondo del quiz.
+ * Priorità: override sul quiz > logo workspace (chiaro o scuro).
+ *
+ * Determina se lo sfondo è "scuro" guardando la luminosità del colore primario.
+ */
+function chooseLogo(opts: {
+  quizLogoUrl: string | null;
+  workspaceLogoUrl: string | null;
+  workspaceLogoUrlDark: string | null;
+  primaryColor: string;
+}): string | null {
+  // Override del quiz vince sempre
+  if (opts.quizLogoUrl) return opts.quizLogoUrl;
+
+  // Calcola luminosità del primaryColor (background del quiz)
+  const isDark = isColorDark(opts.primaryColor);
+
+  if (isDark && opts.workspaceLogoUrlDark) return opts.workspaceLogoUrlDark;
+  return opts.workspaceLogoUrl;
+}
+
+function isColorDark(hex: string): boolean {
+  if (!hex || !hex.startsWith("#")) return true;
+  const cleaned = hex.replace("#", "");
+  const fullHex =
+    cleaned.length === 3
+      ? cleaned.split("").map((c) => c + c).join("")
+      : cleaned;
+  if (fullHex.length !== 6) return true;
+  const r = parseInt(fullHex.slice(0, 2), 16);
+  const g = parseInt(fullHex.slice(2, 4), 16);
+  const b = parseInt(fullHex.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
+
 export default async function PublicQuizPage({ params }: { params: Params }) {
   const ws = await prisma.workspace.findUnique({ where: { slug: params.workspaceSlug } });
   if (!ws) notFound();
@@ -34,6 +71,13 @@ export default async function PublicQuizPage({ params }: { params: Params }) {
     },
   });
   if (!quiz || quiz.status !== "PUBLISHED") notFound();
+
+  const logoToShow = chooseLogo({
+    quizLogoUrl: quiz.logoUrl,
+    workspaceLogoUrl: ws.logoUrl,
+    workspaceLogoUrlDark: ws.logoUrlDark,
+    primaryColor: quiz.primaryColor,
+  });
 
   return (
     <main
@@ -50,6 +94,8 @@ export default async function PublicQuizPage({ params }: { params: Params }) {
           primaryColor: quiz.primaryColor,
           accentColor: quiz.accentColor,
           privacyText: quiz.privacyText,
+          logoUrl: quiz.logoPosition === "hidden" ? null : logoToShow,
+          logoPosition: quiz.logoPosition,
           resultMappings: (quiz.resultMappings as any) || [],
           questions: quiz.questions.map((q) => ({
             id: q.id,
