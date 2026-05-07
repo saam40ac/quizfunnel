@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { LogoUploader } from "@/components/logo-uploader";
 
 type Answer = { text: string; score: number };
 type Question = { text: string; answers: Answer[] };
@@ -23,6 +24,8 @@ type Initial = {
   primaryColor: string;
   accentColor: string;
   privacyText: string;
+  logoUrl: string | null;
+  logoPosition: string;
   resultMappings: ResultMap[];
   questions: Question[];
 };
@@ -178,6 +181,54 @@ export function QuizEditor({
               className="qf-input"
             />
           </Field>
+        </div>
+
+        {/* Logo override */}
+        <div className="mt-6 border-t border-ink/10 pt-5">
+          <h3 className="font-semibold">Logo del quiz</h3>
+          <p className="mt-1 text-xs text-ink/60">
+            Per default il quiz mostra il logo del workspace.
+            Carica qui un logo specifico se vuoi sostituirlo SOLO per questo quiz.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium">Logo specifico (override)</label>
+              <div className="mt-2">
+                <LogoUploader
+                  value={data.logoUrl}
+                  onChange={(v) => update("logoUrl", v)}
+                  label="Logo per questo quiz"
+                  previewBg="light"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Posizione del logo</label>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {[
+                  { v: "center", l: "Al centro" },
+                  { v: "left", l: "A sinistra" },
+                  { v: "hidden", l: "Nascosto" },
+                ].map((opt) => (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => update("logoPosition", opt.v)}
+                    className={`rounded-xl border px-3 py-2 text-sm transition ${
+                      data.logoPosition === opt.v
+                        ? "border-accent bg-accent/10"
+                        : "border-ink/15 hover:border-ink/30"
+                    }`}
+                  >
+                    {opt.l}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-ink/50">
+                Scegli "Nascosto" per non mostrare alcun logo (utile per quiz molto minimal).
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
