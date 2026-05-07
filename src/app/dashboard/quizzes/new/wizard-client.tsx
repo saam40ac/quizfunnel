@@ -47,6 +47,14 @@ export function NewQuizWizard() {
         }),
       });
       if (!res.ok) {
+        // Errore di limite piano: messaggio specifico
+        if (res.status === 402) {
+          const data = await res.json();
+          throw new Error(
+            (data.error || "Funzionalità non disponibile sul tuo piano.") +
+              " Vai su Piani per fare upgrade.",
+          );
+        }
         const text = await res.text();
         throw new Error(text || "Errore durante la generazione");
       }
