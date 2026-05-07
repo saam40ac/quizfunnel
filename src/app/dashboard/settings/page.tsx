@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { getBaseUrl } from "@/lib/utils";
 import { WorkspaceBrandingClient } from "./workspace-branding-client";
+import { getLimits, type Plan } from "@/lib/plans";
+import Link from "next/link";
 
 export default async function SettingsPage({
   searchParams,
@@ -29,8 +31,22 @@ export default async function SettingsPage({
 
   async function saveBranding(data: { logoUrl: string | null; logoUrlDark: string | null }) {
     "use server";
+    const { enforceLimit, PlanLimitError } = await import("@/lib/usage");
     const session = await auth();
     const wsId = (session!.user as any).workspaceId as string;
+    try {
+      // Solo se sta caricando un logo (non se sta cancellando)
+      if (data.logoUrl || data.logoUrlDark) {
+        await enforceLimit(wsId, "upload_logo");
+      }
+    } catch (e) {
+      if (e instanceof PlanLimitError) {
+        // Silenziamo: il client non dovrebbe averci provato grazie al gate UI,
+        // ma se ci arriva, ignoriamo per non spaccare la UX.
+        return;
+      }
+      throw e;
+    }
     await prisma.workspace.update({
       where: { id: wsId },
       data: {
@@ -141,13 +157,29 @@ export default async function SettingsPage({
         <p className="mt-1 text-sm text-ink/60">
           Carica il logo del tuo brand. Apparirà su tutti i quiz pubblici e nella dashboard.
         </p>
-        <div className="mt-5">
-          <WorkspaceBrandingClient
-            initialLogoUrl={ws?.logoUrl ?? null}
-            initialLogoUrlDark={ws?.logoUrlDark ?? null}
-            saveAction={saveBranding}
-          />
-        </div>
+        {(() => {
+          const planLimits = getLimits((ws?.plan as Plan) || "FREE");
+          if (!planLimits.canUploadLogo) {
+            return (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                🔒 Il logo personalizzato è incluso nei piani <strong>Pro</strong> e{" "}
+                <strong>Business</strong>.
+                <Link href="/dashboard/billing" className="ml-2 font-semibold underline">
+                  Vedi i piani →
+                </Link>
+              </div>
+            );
+          }
+          return (
+            <div className="mt-5">
+              <WorkspaceBrandingClient
+                initialLogoUrl={ws?.logoUrl ?? null}
+                initialLogoUrlDark={ws?.logoUrlDark ?? null}
+                saveAction={saveBranding}
+              />
+            </div>
+          );
+        })()}
       </div>
 
       {/* Resto delle impostazioni */}
