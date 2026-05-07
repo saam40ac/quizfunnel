@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { getBaseUrl } from "@/lib/utils";
+import { WorkspaceBrandingClient } from "./workspace-branding-client";
 
 export default async function SettingsPage({
   searchParams,
@@ -24,6 +25,21 @@ export default async function SettingsPage({
       data: { name, customDomain },
     });
     revalidatePath("/dashboard/settings");
+  }
+
+  async function saveBranding(data: { logoUrl: string | null; logoUrlDark: string | null }) {
+    "use server";
+    const session = await auth();
+    const wsId = (session!.user as any).workspaceId as string;
+    await prisma.workspace.update({
+      where: { id: wsId },
+      data: {
+        logoUrl: data.logoUrl,
+        logoUrlDark: data.logoUrlDark,
+      },
+    });
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard");
   }
 
   async function updateSlug(formData: FormData) {
@@ -116,6 +132,21 @@ export default async function SettingsPage({
         <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <strong>Attenzione:</strong> cambiando lo slug, tutti i link pubblici dei tuoi quiz cambieranno.
           Se hai già condiviso link sui social o nelle mail, smetteranno di funzionare.
+        </div>
+      </div>
+
+      {/* Branding (logo) */}
+      <div className="card mt-6">
+        <h2 className="font-display text-xl">Branding</h2>
+        <p className="mt-1 text-sm text-ink/60">
+          Carica il logo del tuo brand. Apparirà su tutti i quiz pubblici e nella dashboard.
+        </p>
+        <div className="mt-5">
+          <WorkspaceBrandingClient
+            initialLogoUrl={ws?.logoUrl ?? null}
+            initialLogoUrlDark={ws?.logoUrlDark ?? null}
+            saveAction={saveBranding}
+          />
         </div>
       </div>
 
