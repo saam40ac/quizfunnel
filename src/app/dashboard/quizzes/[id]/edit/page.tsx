@@ -53,6 +53,8 @@ export default async function EditQuizPage({
           primaryColor: data.primaryColor,
           accentColor: data.accentColor,
           privacyText: data.privacyText,
+          logoUrl: data.logoUrl,
+          logoPosition: data.logoPosition,
           resultMappings: data.resultMappings,
         },
       });
@@ -226,6 +228,8 @@ export default async function EditQuizPage({
           primaryColor: quiz.primaryColor,
           accentColor: quiz.accentColor,
           privacyText: quiz.privacyText ?? "Trattiamo i tuoi dati come da Privacy Policy.",
+          logoUrl: quiz.logoUrl ?? null,
+          logoPosition: quiz.logoPosition || "center",
           resultMappings: (quiz.resultMappings as any) ?? [
             { min: 0, max: 5, label: "Sei agli inizi", description: "Hai bisogno di mettere ordine nelle basi." },
             { min: 6, max: 12, label: "Sei in crescita", description: "Stai facendo bene, ottimizziamo insieme." },
