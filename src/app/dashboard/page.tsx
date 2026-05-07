@@ -19,6 +19,8 @@ export default async function DashboardHome() {
   const ws = await prisma.workspace.findUnique({ where: { id: workspaceId } });
   const usage = await getWorkspaceUsage(workspaceId);
   const plan = PLANS[usage.plan];
+  const { getLockedQuizIds } = await import("@/lib/usage");
+  const lockedQuizIds = await getLockedQuizIds(workspaceId);
 
   // Percentuali usate
   const quizPct = isUnlimited(usage.limits.maxQuizzes)
@@ -92,21 +94,31 @@ export default async function DashboardHome() {
             </Link>
           </div>
         )}
-        {quizzes.map((q) => (
-          <Link
-            key={q.id}
-            href={`/dashboard/quizzes/${q.id}/edit`}
-            className="card flex items-center justify-between transition hover:-translate-y-0.5"
-          >
-            <div>
-              <div className="font-display text-xl">{q.title}</div>
-              <div className="mt-1 text-xs text-ink/50">
-                {q._count.questions} domande · {q._count.leads} lead · stato {q.status}
+        {quizzes.map((q) => {
+          const isLocked = lockedQuizIds.has(q.id);
+          return (
+            <Link
+              key={q.id}
+              href={`/dashboard/quizzes/${q.id}/edit`}
+              className={`card flex items-center justify-between transition hover:-translate-y-0.5 ${isLocked ? "opacity-60" : ""}`}
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="font-display text-xl">{q.title}</div>
+                  {isLocked && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                      🔒 Lettura
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-ink/50">
+                  {q._count.questions} domande · {q._count.leads} lead · stato {q.status}
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-ink/40">→</div>
-          </Link>
-        ))}
+              <div className="text-xs text-ink/40">→</div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
