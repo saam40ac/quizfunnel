@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BILLING_TAGS } from "@/lib/billing-tags";
 
 const FEATURES = [
   {
@@ -141,29 +142,103 @@ export default function HomePage() {
       {/* PREZZI */}
       <section id="prezzi" className="relative z-10 mx-auto max-w-7xl px-6 pb-24">
         <h2 className="font-display text-4xl md:text-5xl">Prezzi semplici.</h2>
-        <p className="mt-2 text-ink/60">Il checkout reale è gestito da Systeme.io. Qui sotto vedi i piani.</p>
+        <p className="mt-2 text-ink/60">
+          Scegli il piano giusto per te. I pagamenti sono gestiti in sicurezza da Systeme.io.
+        </p>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
-            { name: "Free", price: "0€", sub: "/per sempre", lines: ["1 quiz", "100 lead/mese", "Brand QuizFunnel"] },
-            { name: "Pro", price: "29€", sub: "/mese", lines: ["10 quiz", "5.000 lead/mese", "No-brand", "Dominio custom"], hot: true },
-            { name: "Business", price: "79€", sub: "/mese", lines: ["Quiz illimitati", "Lead illimitati", "Multi-utente", "Priority support"] },
+            {
+              key: "FREE",
+              name: "Free",
+              price: "0€",
+              sub: "/per sempre",
+              lines: ["1 quiz attivo", "50 lead/mese sincronizzati", "Editor manuale"],
+              cta: "Inizia gratis",
+              href: "/signup?plan=FREE",
+              external: false,
+            },
+            {
+              key: "PRO",
+              name: "Pro",
+              price: "29€",
+              sub: "/mese",
+              lines: [
+                "10 quiz attivi",
+                "5.000 lead/mese sincronizzati",
+                "Generazione AI di quiz e email",
+                "Logo personalizzato del brand",
+              ],
+              cta: "Inizia con Pro →",
+              href: BILLING_TAGS.PRO.checkoutUrl,
+              external: true,
+              hot: true,
+            },
+            {
+              key: "BUSINESS",
+              name: "Business",
+              price: "79€",
+              sub: "/mese",
+              lines: [
+                "Quiz illimitati",
+                "Lead illimitati",
+                "Tutto del piano Pro",
+                "Dominio personalizzato",
+                "Supporto prioritario",
+              ],
+              cta: "Inizia con Business →",
+              href: BILLING_TAGS.BUSINESS.checkoutUrl,
+              external: true,
+            },
           ].map((p) => (
-            <div key={p.name} className={`card ${p.hot ? "ring-2 ring-accent" : ""}`}>
-              {p.hot && <div className="mb-3 inline-block rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">Più scelto</div>}
+            <div key={p.key} className={`card ${p.hot ? "ring-2 ring-accent" : ""}`}>
+              {p.hot && (
+                <div className="mb-3 inline-block rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">
+                  Più scelto
+                </div>
+              )}
               <div className="font-display text-2xl">{p.name}</div>
               <div className="mt-2 flex items-baseline gap-1">
                 <span className="font-display text-5xl">{p.price}</span>
                 <span className="text-muted">{p.sub}</span>
               </div>
               <ul className="mt-4 space-y-2 text-sm text-ink/70">
-                {p.lines.map((l) => <li key={l}>· {l}</li>)}
+                {p.lines.map((l) => (
+                  <li key={l}>· {l}</li>
+                ))}
               </ul>
-              <Link href="/signup" className={p.hot ? "btn-accent mt-6 w-full" : "btn-primary mt-6 w-full"}>
-                Inizia
-              </Link>
+              {p.external ? (
+                <a
+                  href={p.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${p.hot ? "btn-accent" : "btn-primary"} mt-6 block w-full text-center`}
+                >
+                  {p.cta}
+                </a>
+              ) : (
+                <Link
+                  href={p.href}
+                  className={`${p.hot ? "btn-accent" : "btn-primary"} mt-6 block w-full text-center`}
+                >
+                  {p.cta}
+                </Link>
+              )}
+              {p.external && (
+                <p className="mt-3 text-center text-[10px] text-ink/40">
+                  Pagamento sicuro su Systeme.io
+                </p>
+              )}
             </div>
           ))}
         </div>
+
+        <p className="mt-8 text-center text-xs text-ink/50">
+          💡 Hai pagato ma non hai ancora un account?{" "}
+          <Link href="/signup" className="font-semibold underline">
+            Crea l'account ora
+          </Link>{" "}
+          usando l'email con cui hai pagato — il piano si attiva automaticamente.
+        </p>
       </section>
 
       {/* FOOTER */}
