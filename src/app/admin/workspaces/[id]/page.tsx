@@ -4,24 +4,24 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceDetails } from "@/lib/admin-analytics";
-import { PLANS } from "@/lib/plans";
+import { PLANS, type Plan } from "@/lib/plans";
 
 export default async function WorkspaceDetailPage({
   params,
-  searchParams,
 }: {
   params: { id: string };
-  searchParams: { msg?: string };
 }) {
   const session = await auth();
-  if ((session!.user as any).role !== "SUPER_ADMIN") redirect("/dashboard");
+  if ((session?.user as any)?.role !== "SUPER_ADMIN") redirect("/dashboard");
 
   const data = await getWorkspaceDetails(params.id);
   if (!data.workspace) notFound();
 
+  const ws = data.workspace;
+
   async function changePlanAction(formData: FormData) {
     "use server";
-    const newPlan = String(formData.get("plan")) as any;
+    const newPlan = String(formData.get("plan")) as Plan;
     await prisma.workspace.update({
       where: { id: params.id },
       data: { plan: newPlan },
@@ -29,14 +29,14 @@ export default async function WorkspaceDetailPage({
     revalidatePath(`/admin/workspaces/${params.id}`);
   }
 
-  async function deleteWorkspaceAction() {
+  async function deleteWorkspaceAction(): Promise<void> {
     "use server";
-    // Cascade delete via Prisma
     await prisma.workspace.delete({ where: { id: params.id } });
     redirect("/admin?msg=Workspace+eliminato");
   }
 
-  const ws = data.workspace;
+  const wsPlan = ws.plan as Plan;
+  const planInfo = PLANS[wsPlan] ?? PLANS.FREE;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -50,7 +50,7 @@ export default async function WorkspaceDetailPage({
             <span className="font-mono">{ws.slug}</span>
             <span>·</span>
             <span>
-              Piano <strong>{PLANS[ws.plan as any].name}</strong>
+              Piano <strong>{planInfo.name}</strong>
             </span>
             <span>·</span>
             <span>Creato il {ws.createdAt.toLocaleDateString("it-IT")}</span>
@@ -84,7 +84,6 @@ export default async function WorkspaceDetailPage({
         </div>
       </div>
 
-      {/* Stats */}
       <div className="mt-6 grid gap-3 md:grid-cols-4">
         <Stat label="Quiz creati" value={data.quizzes.length} />
         <Stat label="Lead totali" value={data.leadsTotal} />
@@ -92,7 +91,6 @@ export default async function WorkspaceDetailPage({
         <Stat label="Utenti" value={data.users.length} />
       </div>
 
-      {/* Utenti */}
       <Section title="Utenti del workspace">
         <table className="w-full text-sm">
           <thead className="bg-ink/5 text-left text-xs uppercase tracking-wider text-ink/60">
@@ -118,7 +116,6 @@ export default async function WorkspaceDetailPage({
         </table>
       </Section>
 
-      {/* Quiz */}
       <Section title="Quiz">
         {data.quizzes.length === 0 ? (
           <p className="p-3 text-sm text-ink/50">Nessun quiz ancora.</p>
@@ -164,7 +161,6 @@ export default async function WorkspaceDetailPage({
         )}
       </Section>
 
-      {/* Subscriptions */}
       <Section title="Storico abbonamenti">
         {data.subscriptions.length === 0 ? (
           <p className="p-3 text-sm text-ink/50">
@@ -182,37 +178,41 @@ export default async function WorkspaceDetailPage({
               </tr>
             </thead>
             <tbody>
-              {data.subscriptions.map((s) => (
-                <tr key={s.id} className="border-t border-ink/5">
-                  <td className="px-3 py-2">{PLANS[s.plan as any].name}</td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] ${
-                        s.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-ink/10 text-ink/60"
-                      }`}
-                    >
-                      {s.status}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs">{s.billingEmail}</td>
-                  <td className="px-3 py-2 text-xs">
-                    {s.startedAt.toLocaleDateString("it-IT")}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-ink/60">
-                    {s.cancelledAt
-                      ? s.cancelledAt.toLocaleDateString("it-IT")
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
+              {data.subscriptions.map((s) => {
+                const subPlanInfo = PLANS[s.plan as Plan] ?? PLANS.FREE;
+                return (
+                  <tr key={s.id} className="border-t border-ink/5">
+                    <td className="px-3 py-2">{subPlanInfo.name}</td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] ${
+                          s.status === "active"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-ink/10 text-ink/60"
+                        }`}
+                      >
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {s.billingEmail}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {s.startedAt.toLocaleDateString("it-IT")}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-ink/60">
+                      {s.cancelledAt
+                        ? s.cancelledAt.toLocaleDateString("it-IT")
+                        : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
       </Section>
 
-      {/* Webhook events */}
       <Section title="Eventi webhook recenti (ultimi 20)">
         {data.webhookEvents.length === 0 ? (
           <p className="p-3 text-sm text-ink/50">
@@ -232,7 +232,9 @@ export default async function WorkspaceDetailPage({
             <tbody>
               {data.webhookEvents.map((ev) => (
                 <tr key={ev.id} className="border-t border-ink/5">
-                  <td className="px-3 py-2 font-mono text-[10px]">{ev.eventType}</td>
+                  <td className="px-3 py-2 font-mono text-[10px]">
+                    {ev.eventType}
+                  </td>
                   <td className="px-3 py-2 font-mono text-[10px]">
                     {ev.tagName || "—"}
                   </td>
@@ -261,8 +263,9 @@ export default async function WorkspaceDetailPage({
         )}
       </Section>
 
-      {/* AI usage */}
-      <Section title={`Storico chiamate AI (ultime ${Math.min(data.aiLogs.length, 100)})`}>
+      <Section
+        title={`Storico chiamate AI (ultime ${Math.min(data.aiLogs.length, 30)})`}
+      >
         {data.aiLogs.length === 0 ? (
           <p className="p-3 text-sm text-ink/50">
             Nessuna chiamata AI registrata per questo workspace.
@@ -282,7 +285,9 @@ export default async function WorkspaceDetailPage({
             <tbody>
               {data.aiLogs.slice(0, 30).map((log) => (
                 <tr key={log.id} className="border-t border-ink/5">
-                  <td className="px-3 py-2 font-mono text-[10px]">{log.operation}</td>
+                  <td className="px-3 py-2 font-mono text-[10px]">
+                    {log.operation}
+                  </td>
                   <td className="px-3 py-2 text-xs">{log.model}</td>
                   <td className="px-3 py-2 text-right text-xs tabular-nums">
                     {log.inputTokens}
