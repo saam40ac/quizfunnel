@@ -36,10 +36,14 @@ export default function HomePage() {
     <main className="relative min-h-screen overflow-hidden">
       {/* HEADER */}
       <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-ink text-cream font-display text-lg">Q</div>
-          <span className="font-display text-xl font-semibold tracking-tight">QuizFunnel</span>
-        </div>
+        <Link href="/" className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/branding/logo-quizfunnel-full.jpg"
+            alt="QuizFunnel — Architettura di Conversione"
+            className="h-10 w-auto md:h-12"
+          />
+        </Link>
         <nav className="hidden gap-8 text-sm md:flex">
           <a href="#come-funziona" className="hover:opacity-60">Come funziona</a>
           <a href="#features" className="hover:opacity-60">Features</a>
