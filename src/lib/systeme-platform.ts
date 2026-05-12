@@ -68,6 +68,16 @@ export async function setSystemeMagicLinkField(opts: {
     // 2. Aggiorna il custom field via merge-patch
     // Systeme.io richiede: PATCH /contacts/{id} con Content-Type merge-patch+json
     // Il body usa "fields" come array di {slug, value}
+    //
+    // IMPORTANTE: il link builder di Systeme.io richiede di selezionare un prefisso
+    // fisso (https:// | mailto: | tel:) e poi accoda la variabile. Per evitare
+    // di ottenere "https://https://..." quando il marketer sceglie https://,
+    // salviamo nel custom field il URL SENZA il prefisso https://.
+    // Esempio: salviamo "www.quizfunnel.it/login/magic?token=xxx"
+    // Su Systeme.io il pulsante: prefix "https://" + variabile [quizfunnel_magic_link]
+    // Risultato finale: "https://www.quizfunnel.it/login/magic?token=xxx" ✓
+    const valueForSysteme = opts.magicLinkUrl.replace(/^https?:\/\//i, "");
+
     const updateRes = await fetch(`${SYSTEME_API_BASE}/contacts/${contact.id}`, {
       method: "PATCH",
       headers: {
@@ -79,7 +89,7 @@ export async function setSystemeMagicLinkField(opts: {
         fields: [
           {
             slug: "quizfunnel_magic_link",
-            value: opts.magicLinkUrl,
+            value: valueForSysteme,
           },
         ],
       }),
