@@ -35,11 +35,15 @@ model User {
   id           String    @id @default(cuid())
   email        String    @unique
   name         String?
-  passwordHash String
+  // passwordHash è OPZIONALE: gli utenti creati via auto-signup post-pagamento
+  // non hanno password iniziale; entrano via magic link e possono impostare la
+  // password successivamente dalle settings.
+  passwordHash String?
   role         Role      @default(OWNER)
   workspaceId  String?
   workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   createdAt    DateTime  @default(now())
+  magicLinks   MagicLink[]
 }
 
 model Workspace {
@@ -111,6 +115,26 @@ model WebhookEvent {
   @@index([email])
   @@index([createdAt])
   @@index([workspaceId])
+}
+
+/// Magic link per il login senza password.
+/// Creato dal webhook quando un utente paga su Systeme.io (auto-signup).
+/// L'utente clicca il link nell'email Systeme.io e entra direttamente in dashboard.
+/// Single-use: dopo il primo utilizzo viene marcato come "usato".
+model MagicLink {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Quando scade (default: 30 giorni)
+  expiresAt   DateTime
+  // Se è già stato usato (single-use)
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Quiz {
