@@ -27,23 +27,32 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="grid min-h-screen md:grid-cols-[260px_1fr]">
       <aside className="border-r border-ink/10 bg-white/40 p-5 backdrop-blur">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           {ws?.logoUrl ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={ws.logoUrl}
-                alt={ws.name}
-                className="h-8 max-w-[140px] object-contain"
-              />
-            </>
+            // Logo personalizzato del workspace (Pro/Business che ha caricato il proprio)
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={ws.logoUrl}
+              alt={ws.name}
+              className="h-10 max-w-[180px] object-contain"
+            />
           ) : (
-            <>
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-cream font-display">Q</div>
-              <span className="font-display text-lg">{ws?.name || "QuizFunnel"}</span>
-            </>
+            // Logo QuizFunnel di default (FREE o utenti che non hanno caricato un logo proprio)
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/branding/logo-quizfunnel-full.jpg"
+              alt="QuizFunnel"
+              className="h-10 max-w-[180px] object-contain"
+            />
           )}
         </Link>
+
+        {/* Nome workspace come sottotitolo, sempre visibile per chiarezza */}
+        {ws?.name && (
+          <p className="mt-2 truncate text-[10px] uppercase tracking-widest text-ink/40">
+            {ws.name}
+          </p>
+        )}
         <nav className="mt-8 space-y-1 text-sm">
           {items.map((it) => (
             <Link
