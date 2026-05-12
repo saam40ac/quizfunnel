@@ -22,7 +22,14 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
   return (
     <main className="grid min-h-screen place-items-center px-6">
       <div className="card w-full max-w-md">
-        <Link href="/" className="font-display text-xl">← QuizFunnel</Link>
+        <Link href="/" className="inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/branding/logo-quizfunnel-full.jpg"
+            alt="QuizFunnel"
+            className="h-10 w-auto"
+          />
+        </Link>
         <h1 className="mt-4 font-display text-3xl">Accedi</h1>
         {searchParams.error && (
           <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
