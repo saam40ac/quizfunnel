@@ -48,6 +48,7 @@ export default async function TrackingRedirect({
   // Il bug della v1 era: regex /^\d+/ rubava la prima cifra dell'hash quando
   // l'hash iniziava con una cifra (es. "8b9..." → cattura "...48" invece di
   // fermarsi a "...4"). Soluzione: separare gli ultimi 32 char come hash.
+  const lastSegment = slugs[slugs.length - 1] || "";
   let contactId: string | null = null;
 
   if (lastSegment.length > 32) {
