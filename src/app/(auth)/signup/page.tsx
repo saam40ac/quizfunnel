@@ -103,8 +103,13 @@ export default function SignupPage({
   return (
     <main className="grid min-h-screen place-items-center px-6">
       <div className="card w-full max-w-md">
-        <Link href="/" className="font-display text-xl">
-          ← QuizFunnel
+        <Link href="/" className="inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/branding/logo-quizfunnel-full.jpg"
+            alt="QuizFunnel"
+            className="h-10 w-auto"
+          />
         </Link>
 
         {/* Banner per chi arriva da pagamento */}
