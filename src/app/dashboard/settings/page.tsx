@@ -20,11 +20,9 @@ export default async function SettingsPage({
     const session = await auth();
     const wsId = (session!.user as any).workspaceId as string;
     const name = String(formData.get("name") || "").trim();
-    const customDomain =
-      String(formData.get("customDomain") || "").trim().toLowerCase() || null;
     await prisma.workspace.update({
       where: { id: wsId },
-      data: { name, customDomain },
+      data: { name },
     });
     revalidatePath("/dashboard/settings");
   }
@@ -184,7 +182,7 @@ export default async function SettingsPage({
 
       {/* Resto delle impostazioni */}
       <form action={save} className="card mt-6 space-y-5">
-        <h2 className="font-display text-xl">Identità e dominio</h2>
+        <h2 className="font-display text-xl">Identità del workspace</h2>
         <div>
           <label className="text-sm font-medium">Nome workspace</label>
           <input
@@ -192,17 +190,8 @@ export default async function SettingsPage({
             defaultValue={ws?.name}
             className="mt-1 w-full rounded-xl border border-ink/15 bg-white/80 px-4 py-3"
           />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Dominio custom (opzionale)</label>
-          <input
-            name="customDomain"
-            defaultValue={ws?.customDomain || ""}
-            placeholder="quiz.tuodominio.it"
-            className="mt-1 w-full rounded-xl border border-ink/15 bg-white/80 px-4 py-3 font-mono text-sm"
-          />
-          <p className="mt-2 text-xs text-ink/60">
-            Configura il dominio su Vercel (Project → Settings → Domains) e aggiungi un record CNAME → cname.vercel-dns.com.
+          <p className="mt-2 text-xs text-ink/50">
+            Compare nella tua dashboard e (insieme allo slug) nei link pubblici dei quiz.
           </p>
         </div>
         <div>
@@ -211,6 +200,26 @@ export default async function SettingsPage({
         </div>
         <button className="btn-primary">Salva</button>
       </form>
+
+      {/* Info pubblicazione dei quiz */}
+      <div className="card mt-6 bg-ink/5">
+        <h3 className="font-display text-lg">Come pubblicare i tuoi quiz</h3>
+        <p className="mt-2 text-sm text-ink/70">
+          Ogni quiz che pubblichi è disponibile su due tipi di URL:
+        </p>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink/70">
+          <li>
+            <strong>Link pubblico</strong>: condividilo direttamente sui social o nelle tue mail
+          </li>
+          <li>
+            <strong>Codice embed</strong>: incollalo nella tua landing page su Systeme.io,
+            WordPress, Shopify, Wix o qualsiasi altro CMS che supporti l'HTML embed
+          </li>
+        </ul>
+        <p className="mt-3 text-xs text-ink/50">
+          Trovi entrambi nella pagina di modifica di ogni quiz, sezione "Pubblicazione".
+        </p>
+      </div>
     </div>
   );
 }
