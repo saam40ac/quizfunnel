@@ -170,6 +170,7 @@ export async function POST(req: NextRequest) {
       const updateResult = await setSystemeMagicLinkField({
         email: lowercaseEmail,
         magicLinkUrl,
+        contactId: payload.contact?.id, // estratto direttamente dal webhook
       });
       console.log(
         `[webhook v4] Systeme.io field update: ${updateResult.ok ? "✓" : "✗"} ${updateResult.message}`,
@@ -241,6 +242,7 @@ export async function POST(req: NextRequest) {
         await setSystemeMagicLinkField({
           email: lowercaseEmail,
           magicLinkUrl,
+          contactId: payload.contact?.id,
         });
         console.log(`[webhook v4] Magic link rigenerato per upgrade esistente`);
       }
