@@ -24,6 +24,7 @@
  */
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createMagicLink } from "@/lib/magic-link";
 import { getBaseUrl } from "@/lib/utils";
@@ -37,12 +38,40 @@ export default async function TrackingRedirect({
 }) {
   const slugs = params.slug || [];
 
-  // Cerchiamo nell'ultima parte del path il contact ID (cifre iniziali).
-  // Esempio path: ["2", "17550066", "13624709074", "43375750", "4220014248b989..."]
-  // Vogliamo l'ultimo segmento.
-  const lastSegment = slugs[slugs.length - 1] || "";
-  const contactIdMatch = lastSegment.match(/^(\d{6,})/);
-  const contactId = contactIdMatch ? contactIdMatch[1] : null;
+  // Sui link tracker Systeme.io, l'ultimo segmento ha questa struttura:
+  //   <CONTACT_ID><MD5_HASH>
+  // Dove l'hash MD5 è ESATTAMENTE 32 caratteri esadecimali (a-f, 0-9).
+  // Esempio: "4220014248b9898c3cec7111742bb8ec3d716299a"
+  //           ^^^^^^^^^                                  ← contact ID
+  //                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^   ← hash MD5
+  //
+  // Il bug della v1 era: regex /^\d+/ rubava la prima cifra dell'hash quando
+  // l'hash iniziava con una cifra (es. "8b9..." → cattura "...48" invece di
+  // fermarsi a "...4"). Soluzione: separare gli ultimi 32 char come hash.
+  let contactId: string | null = null;
+
+  if (lastSegment.length > 32) {
+    // Hash MD5 standard = 32 caratteri esadecimali
+    const candidate = lastSegment.slice(0, lastSegment.length - 32);
+    // Il candidato dev'essere fatto solo di cifre
+    if (/^\d+$/.test(candidate)) {
+      contactId = candidate;
+    }
+  }
+
+  // Fallback: se il formato non matcha, prova SHA1 (40 char)
+  if (!contactId && lastSegment.length > 40) {
+    const candidate = lastSegment.slice(0, lastSegment.length - 40);
+    if (/^\d+$/.test(candidate)) {
+      contactId = candidate;
+    }
+  }
+
+  // Fallback 2: prendi tutte le cifre iniziali (vecchio comportamento, può rubare cifre dall'hash)
+  if (!contactId) {
+    const m = lastSegment.match(/^(\d{6,})/);
+    contactId = m ? m[1] : null;
+  }
 
   console.log(
     `[tr] Tracking link ricevuto: slugs=${JSON.stringify(slugs)}, estratto contactId=${contactId}`,
@@ -115,8 +144,6 @@ async function fetchContactEmail(contactId: string): Promise<string | null> {
 // =============================================================================
 // Vista di errore (per casi limite)
 // =============================================================================
-
-import Link from "next/link";
 
 function ErrorView({
   reason,
